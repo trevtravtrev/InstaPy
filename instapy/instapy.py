@@ -424,15 +424,15 @@ class InstaPy:
         # every element, now it's taking 5 seconds.
 
         # Accept cookies quick and dirty fix.
-        
+        page_delay = 5+random.uniform(0,1)
         self.browser.get('https://instagram.com/accounts/login')
-        self.browser.implicitly_wait(5)
+        self.browser.implicitly_wait(page_delay)
         for element in self.browser.find_elements_by_tag_name('button'):
             if element.text.strip().lower() == 'accept':
                 element.click()
                 break
 
-        temporary_page_delay = 5
+        temporary_page_delay = 5+random.uniform(0,1)
         self.browser.implicitly_wait(temporary_page_delay)
 
         if not login_user(
@@ -5975,9 +5975,8 @@ class InstaPy:
         randomize: bool = False,
         media: str = None,
         num_comments_from: int = 1,
-        num_comments_to: int = 2,
+        num_comments_to: int = 1,
     ):
-        num_comments = random.randint(num_comments_from, num_comments_to)
 
         """Likes some amounts of images for each usernames"""
         if self.aborting:
@@ -6196,26 +6195,30 @@ class InstaPy:
                                         if is_video
                                         else self.photo_comments
                                     )
-                                    success = process_comments(
-                                        comments,
-                                        temp_comments,
-                                        self.delimit_commenting,
-                                        self.max_comments,
-                                        self.min_comments,
-                                        self.comments_mandatory_words,
-                                        self.username,
-                                        self.blacklist,
-                                        self.browser,
-                                        self.logger,
-                                        self.logfolder,
-                                        num_comments,
-                                    )
+                                    # added multi comment per post
+                                    count = 0
+                                    num_comments = random.randint(num_comments_from, num_comments_to)
+                                    for count in range(num_comments):
+                                        success = process_comments(
+                                            comments,
+                                            temp_comments,
+                                            self.delimit_commenting,
+                                            self.max_comments,
+                                            self.min_comments,
+                                            self.comments_mandatory_words,
+                                            self.username,
+                                            self.blacklist,
+                                            self.browser,
+                                            self.logger,
+                                            self.logfolder,
+                                            index=count,
+                                        )
 
-                                    if success:
-                                        commented += 1
+                                        if success:
+                                            commented += 1
                                 else:
                                     self.logger.info("--> Not commented")
-                                    sleep(1)
+                                    sleep(1+random.uniform(0,.3))
 
                             elif msg == "already liked":
                                 already_liked += 1

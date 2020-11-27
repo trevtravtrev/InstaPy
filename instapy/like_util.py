@@ -497,7 +497,7 @@ def get_links_for_username(
         browser.execute_script("window.scrollTo(0, document.body.scrollHeight);")
         # update server calls after a scroll request
         update_activity(browser, state=None)
-        sleep(0.66)
+        sleep(0.66+random.uniform(0,.2))
 
         # using `extend`  or `+=` results reference stay alive which affects
         # previous assignment (can use `copy()` for it)
@@ -778,7 +778,7 @@ def like_image(browser, username, blacklist, logger, logfolder, total_liked_img)
 
     if len(like_elem) == 1:
         # sleep real quick right before clicking the element
-        sleep(2)
+        sleep(2+random.uniform(0,1))
         like_elem = browser.find_elements_by_xpath(like_xpath)
         if len(like_elem) > 0:
             click_element(browser, like_elem[0])
@@ -813,7 +813,7 @@ def like_image(browser, username, blacklist, logger, logfolder, total_liked_img)
             logger.info(
                 "--> {} was not able to get liked! maybe blocked?".format(media)
             )
-            sleep(120)
+            sleep(120+random.uniform(0,1))
 
     else:
         liked_elem = browser.find_elements_by_xpath(unlike_xpath)
@@ -882,7 +882,6 @@ def get_links(browser, page, logger, media, element):
         # Get image links in scope from hashtag, location and other pages
         link_elems = element.find_elements_by_xpath('//a[starts-with(@href, "/p/")]')
         sleep(random.randint(2, 5))
-
         if link_elems:
             for link_elem in link_elems:
                 try:

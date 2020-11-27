@@ -59,85 +59,84 @@ def open_comment_section(browser, logger):
         logger.warning(missing_comment_elem_warning)
 
 
-def comment_image(browser, username, comments, blacklist, logger, logfolder, num_comments):
-    for i in range(num_comments):
-        """Checks if it should comment on the image"""
-        # check action availability
-        if quota_supervisor("comments") == "jump":
-            return False, "jumped"
+def comment_image(browser, username, comments, blacklist, logger, logfolder, index=0):
+    """Checks if it should comment on the image"""
+    # check action availability
+    if quota_supervisor("comments") == "jump":
+        return False, "jumped"
 
-        rand_comment = random.choice(comments).format(username)
-        rand_comment = emoji.demojize(rand_comment)
-        rand_comment = emoji.emojize(rand_comment, use_aliases=True)
-
+    rand_comment = random.choice(comments).format(username)
+    rand_comment = emoji.demojize(rand_comment)
+    rand_comment = emoji.emojize(rand_comment, use_aliases=True)
+    if index == 0:
         open_comment_section(browser, logger)
         # wait, to avoid crash
-        sleep(3)
-        comment_input = get_comment_input(browser)
+        sleep(3+random.uniform(0,1))
+    comment_input = get_comment_input(browser)
 
-        try:
-            if len(comment_input) > 0:
-                # wait, to avoid crash
-                sleep(2)
-                comment_input = get_comment_input(browser)
-                # below, an extra space is added to force
-                # the input box to update the reactJS core
-                comment_to_be_sent = rand_comment
+    try:
+        if len(comment_input) > 0:
+            # wait, to avoid crash
+            sleep(2+random.uniform(0,1))
+            comment_input = get_comment_input(browser)
+            # below, an extra space is added to force
+            # the input box to update the reactJS core
+            comment_to_be_sent = rand_comment
 
-                # wait, to avoid crash
-                sleep(2)
-                # click on textarea/comment box and enter comment
-                (
-                    ActionChains(browser)
-                    .move_to_element(comment_input[0])
-                    .click()
-                    .send_keys(comment_to_be_sent)
-                    .perform()
-                )
-                # wait, to avoid crash
-                sleep(2)
-                # post comment / <enter>
-                (
-                    ActionChains(browser)
-                    .move_to_element(comment_input[0])
-                    .send_keys(Keys.ENTER)
-                    .perform()
-                )
-
-                update_activity(
-                    browser,
-                    action="comments",
-                    state=None,
-                    logfolder=logfolder,
-                    logger=logger,
-                )
-
-                if blacklist["enabled"] is True:
-                    action = "commented"
-                    add_user_to_blacklist(
-                        username, blacklist["campaign"], action, logger, logfolder
-                    )
-            else:
-                logger.warning(
-                    "--> Comment Action Likely Failed!" "\t~comment Element was not found"
-                )
-                return False, "commenting disabled"
-
-        except InvalidElementStateException:
-            logger.warning(
-                "--> Comment Action Likely Failed!"
-                "\t~encountered `InvalidElementStateException` :/"
+            # wait, to avoid crash
+            sleep(2+random.uniform(0,1))
+            # click on textarea/comment box and enter comment
+            (
+                ActionChains(browser)
+                .move_to_element(comment_input[0])
+                .click()
+                .send_keys(comment_to_be_sent)
+                .perform()
             )
-            return False, "invalid element state"
-        except WebDriverException as ex:
-            logger.error(ex)
+            # wait, to avoid crash
+            sleep(2+random.uniform(0,1))
+            # post comment / <enter>
+            (
+                ActionChains(browser)
+                .move_to_element(comment_input[0])
+                .send_keys(Keys.ENTER)
+                .perform()
+            )
 
-        logger.info("--> Commented: {}".format(rand_comment.encode("utf-8")))
-        Event().commented(username)
+            update_activity(
+                browser,
+                action="comments",
+                state=None,
+                logfolder=logfolder,
+                logger=logger,
+            )
 
-        # get the post-comment delay time to sleep
-        naply = get_action_delay("comment")
-        sleep(naply)
+            if blacklist["enabled"] is True:
+                action = "commented"
+                add_user_to_blacklist(
+                    username, blacklist["campaign"], action, logger, logfolder
+                )
+        else:
+            logger.warning(
+                "--> Comment Action Likely Failed!" "\t~comment Element was not found"
+            )
+            return False, "commenting disabled"
+
+    except InvalidElementStateException:
+        logger.warning(
+            "--> Comment Action Likely Failed!"
+            "\t~encountered `InvalidElementStateException` :/"
+        )
+        return False, "invalid element state"
+    except WebDriverException as ex:
+        logger.error(ex)
+
+    logger.info("--> Commented: {}".format(rand_comment.encode("utf-8")))
+    Event().commented(username)
+
+    # get the post-comment delay time to sleep
+    naply = get_action_delay("comment")
+    sleep(naply)
 
     return True, "success"
 
@@ -435,8 +434,8 @@ def process_comments(
     link,
     logger,
     logfolder,
-    num_comments,
-    publish=True,
+    index,
+    publish=True
 ):
 
     # comments
@@ -493,7 +492,7 @@ def process_comments(
             blacklist,
             logger,
             logfolder,
-            num_comments
+            index
         )
 
         # Return to the target uset page
