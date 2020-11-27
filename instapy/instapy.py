@@ -5958,450 +5958,333 @@ class InstaPy:
 
         return target_list
 
-    def comment_by_post(
+    def multi_interact_by_users(
         self,
-        usernames: list = None,
+        usernames: list,
         amount: int = 10,
         randomize: bool = False,
         media: str = None,
-        post_number: int = 10
+        num_comments_from: int = 1,
+        num_comments_to: int = 2,
     ):
-        """Likes (default) 50 images per given usernames"""
-        # if self.aborting:
-        #     return self
+        num_comments = random.randint(num_comments_from, num_comments_to)
 
-        # test code
+        """Likes some amounts of images for each usernames"""
+        if self.aborting:
+            return self
+
+        message = "Starting to interact by users.."
+        highlight_print(self.username, message, "feature", "info", self.logger)
+
         if not isinstance(usernames, list):
             usernames = [usernames]
 
+        # standalone means this feature is started by the user
+        standalone = (
+            True if "interact_by_users" not in self.internal_usage.keys() else False
+        )
+        # skip validation in case of it is already accomplished
+        users_validated = (
+            True
+            if not standalone
+            and not self.internal_usage["interact_by_users"]["validate"]
+            else False
+        )
+
+        total_liked_img = 0
+        already_liked = 0
+        inap_img = 0
         commented = 0
         followed = 0
-        inap_img = 0
+        already_followed = 0
         not_valid_users = 0
-        tempAmount = amount
 
-        usernames = usernames or []
         self.quotient_breach = False
 
         for index, username in enumerate(usernames):
-            decrementer = tempAmount
             if self.quotient_breach:
+                # keep `quotient_breach` active to break the internal
+                # iterators of the caller
+                self.quotient_breach = True if not standalone else False
                 break
 
             self.logger.info("Username [{}/{}]".format(index + 1, len(usernames)))
             self.logger.info("--> {}".format(username.encode("utf-8")))
 
+            if not users_validated:
+                validation, details = self.validate_user_call(username)
+                if not validation:
+                    self.logger.info("--> not a valid user: {}".format(details))
+                    not_valid_users += 1
+                    continue
+
+            track = "profile"
+            # decision making
+            # static conditions
+            not_dont_include = username not in self.dont_include
+            follow_restricted = follow_restriction(
+                "read", username, self.follow_times, self.logger
+            )
+            counter = 0
+            while True:
+                following = (
+                    random.randint(0, 100) <= self.follow_percentage
+                    and self.do_follow
+                    and not_dont_include
+                    and not follow_restricted
+                )
+                commenting = (
+                    random.randint(0, 100) <= self.comment_percentage
+                    and self.do_comment
+                    and not_dont_include
+                )
+                liking = random.randint(0, 100) <= self.like_percentage
+
+                story = (
+                    random.randint(0, 100) <= self.story_percentage and self.do_story
+                )
+
+                counter += 1
+
+                # if we have only one image to like/comment
+                if commenting and not liking and amount == 1:
+                    continue
+
+                if following or commenting or liking or story:
+                    self.logger.info(
+                        "username actions: following={} commenting={} "
+                        "liking={} story={}".format(
+                            following, commenting, liking, story
+                        )
+                    )
+                    break
+
+                # if for some reason we have no actions on this user
+                if counter > 5:
+                    self.logger.info(
+                        "username={} could not get interacted".format(username)
+                    )
+                    break
 
             try:
                 links = get_links_for_username(
                     self.browser,
                     self.username,
                     username,
-                    post_number,
+                    amount,
                     self.logger,
                     self.logfolder,
                     randomize,
                     media,
                 )
             except NoSuchElementException:
-                self.logger.warning("Element not found, skipping this username")
+                self.logger.error("Element not found, skipping this username")
                 continue
 
             if links is False:
                 continue
 
             # Reset like counter for every username
-            commented_img = 0
-            link = links[post_number-1]
+            liked_img = 0
 
-            for i in enumerate(links):
-                if decrementer > 0:
-                    if (self.jumps["consequent"]["comments"]
-                        >= self.jumps["limit"]["comments"]
-                    ):
-                        self.logger.warning(
-                            "--> Comment quotient reached its peak!\t~leaving "
-                            "Comment-By-Locations activity\n"
-                        )
-                        self.quotient_breach = True
-                        # reset jump counter after a breach report
-                        self.jumps["consequent"]["comments"] = 0
-                        break
+            for i, link in enumerate(links[:amount]):
+                if self.jumps["consequent"]["likes"] >= self.jumps["limit"]["likes"]:
+                    self.logger.warning(
+                        "--> Like quotient reached its peak!\t~leaving "
+                        "Interact-By-Users activity\n"
+                    )
+                    self.quotient_breach = True
+                    # reset jump counter after a breach report
+                    self.jumps["consequent"]["likes"] = 0
+                    break
 
-                    # self.logger.info("Comment# [{}/{}]".format(i + 1, len(links)))
-                    self.logger.info(link)
+                # Check if target has reached
+                if liked_img >= amount:
+                    self.logger.info("-------------")
+                    self.logger.info(
+                        "--> Total liked image reached it's "
+                        "amount given: {}".format(liked_img)
+                    )
+                    break
 
-                    try:
-                        inappropriate, user_name, is_video, reason, scope = check_link(
-                            self.browser,
-                            link,
-                            self.dont_like,
-                            self.mandatory_words,
-                            self.mandatory_language,
-                            self.is_mandatory_character,
-                            self.mandatory_character,
-                            self.check_character_set,
-                            self.ignore_if_contains,
-                            self.logger,
-                        )
-                        if not inappropriate:
-                            # validate user
-                            validation, details = self.validate_user_call(user_name)
-                            if validation is not True:
-                                self.logger.info(details)
-                                not_valid_users += 1
-                                continue
-                            else:
-                                web_address_navigator(self.browser, link)
-                                print("web_address_navigator loop")
+                self.logger.info("Post [{}/{}]".format(i + 1, len(links[:amount])))
+                self.logger.info(link)
 
-                            # try to comment
-                            self.logger.info(
-                                "--> Image not liked: Likes are disabled for the "
-                                "'Comment-By-Username' feature"
+                try:
+                    inappropriate, user_name, is_video, reason, scope = check_link(
+                        self.browser,
+                        link,
+                        self.dont_like,
+                        self.mandatory_words,
+                        self.mandatory_language,
+                        self.is_mandatory_character,
+                        self.mandatory_character,
+                        self.check_character_set,
+                        self.ignore_if_contains,
+                        self.logger,
+                    )
+                    track = "post"
+
+                    if not inappropriate:
+                        # after first image we roll again
+                        if i > 0:
+                            liking = random.randint(0, 100) <= self.like_percentage
+                            commenting = (
+                                random.randint(0, 100) <= self.comment_percentage
+                                and self.do_comment
+                                and not_dont_include
+                            )
+                            story = (
+                                random.randint(0, 100) <= self.story_percentage
+                                and self.do_story
                             )
 
-                            checked_img = True
-                            temp_comments = []
-                            commenting = random.randint(0, 99) <= self.comment_percentage
-                            following = random.randint(0, 100) <= self.follow_percentage
+                        # like
+                        if self.do_like and liking and self.delimit_liking:
+                            self.liking_approved = verify_liking(
+                                self.browser,
+                                self.max_likes,
+                                self.min_likes,
+                                self.logger,
+                            )
 
-                            if not commenting:
-                                self.logger.info(
-                                    "--> Image not commented: skipping out of "
-                                    "given comment percentage"
-                                )
-                                continue
+                        if self.do_like and liking and self.liking_approved:
+                            like_state, msg = like_image(
+                                self.browser,
+                                user_name,
+                                self.blacklist,
+                                self.logger,
+                                self.logfolder,
+                                total_liked_img,
+                            )
+                            if like_state is True:
+                                total_liked_img += 1
+                                liked_img += 1
+                                # reset jump counter after a successful like
+                                self.jumps["consequent"]["likes"] = 0
 
-                            if self.use_clarifai:
-                                try:
-                                    (
-                                        checked_img,
+                                # comment
+                                checked_img = True
+                                temp_comments = []
+
+                                if self.use_clarifai and commenting:
+                                    try:
+                                        (
+                                            checked_img,
+                                            temp_comments,
+                                            clarifai_tags,
+                                        ) = self.query_clarifai()
+
+                                    except Exception as err:
+                                        self.logger.error(
+                                            "Image check error: {}".format(err)
+                                        )
+
+                                if commenting and checked_img:
+                                    comments = self.comments + (
+                                        self.video_comments
+                                        if is_video
+                                        else self.photo_comments
+                                    )
+                                    success = process_comments(
+                                        comments,
                                         temp_comments,
-                                        clarifai_tags,
-                                    ) = self.query_clarifai()
-
-                                except Exception as err:
-                                    self.logger.error("Image check error: {}".format(err))
-                            if (
-                                self.do_comment
-                                and user_name not in self.dont_include
-                                and checked_img
-                            ):
-
-                                if self.delimit_commenting:
-                                    (
-                                        self.commenting_approved,
-                                        disapproval_reason,
-                                    ) = verify_commenting(
-                                        self.browser,
+                                        self.delimit_commenting,
                                         self.max_comments,
                                         self.min_comments,
                                         self.comments_mandatory_words,
+                                        self.username,
+                                        self.blacklist,
+                                        self.browser,
                                         self.logger,
+                                        self.logfolder,
+                                        num_comments,
                                     )
-                                if self.commenting_approved:
-                                    # smart commenting
-                                    if decrementer > 0:
-                                        comments = self.fetch_smart_comments(
-                                            is_video, temp_comments
-                                        )
-                                        if comments:
-                                            comment_state, msg = comment_image(
-                                                self.browser,
-                                                user_name,
-                                                comments,
-                                                self.blacklist,
-                                                self.logger,
-                                                self.logfolder,
-                                            )
-                                            if comment_state is True:
-                                                commented += 1
-                                                decrementer -= 1
-                                                # reset jump counter after a
-                                                # successful comment
-                                                self.jumps["consequent"]["comments"] = 0
 
-                                                # try to follow
-                                                if (
-                                                    self.do_follow
-                                                    and user_name not in self.dont_include
-                                                    and checked_img
-                                                    and following
-                                                    and not follow_restriction(
-                                                        "read",
-                                                        user_name,
-                                                        self.follow_times,
-                                                        self.logger,
-                                                    )
-                                                ):
-
-                                                    follow_state, msg = follow_user(
-                                                        self.browser,
-                                                        "post",
-                                                        self.username,
-                                                        user_name,
-                                                        None,
-                                                        self.blacklist,
-                                                        self.logger,
-                                                        self.logfolder,
-                                                    )
-                                                    if follow_state is True:
-                                                        followed += 1
-
-                                                else:
-                                                    self.logger.info("--> Not following")
-                                                    sleep(1)
-
-                                        elif msg == "jumped":
-                                            # will break the loop after certain
-                                            # consecutive jumps
-                                            self.jumps["consequent"]["comments"] += 1
-
+                                    if success:
+                                        commented += 1
                                 else:
-                                    self.logger.info(disapproval_reason)
+                                    self.logger.info("--> Not commented")
+                                    sleep(1)
 
-                            else:
-                                self.logger.info("--> Not commented")
-                                sleep(1)
+                            elif msg == "already liked":
+                                already_liked += 1
 
-                        else:
-                            self.logger.info(
-                                "--> Image not commented: {}".format(reason.encode("utf-8"))
-                            )
-                            inap_img += 1
+                            elif msg == "block on likes":
+                                break
 
-                    except NoSuchElementException as err:
-                        self.logger.error("Invalid Page: {}".format(err))
+                            elif msg == "jumped":
+                                # will break the loop after certain
+                                # consecutive jumps
+                                self.jumps["consequent"]["likes"] += 1
 
-        self.logger.info("Username: {}".format(username.encode("utf-8")))
-        self.logger.info("Commented: {}".format(commented))
-        self.logger.info("Followed: {}".format(followed))
-        self.logger.info("Inappropriate: {}".format(inap_img))
-        self.logger.info("Not valid users: {}\n".format(not_valid_users))
+                    else:
+                        self.logger.info(
+                            "--> Image not liked: {}".format(reason.encode("utf-8"))
+                        )
+                        inap_img += 1
 
+                except NoSuchElementException as err:
+                    self.logger.info("Invalid Page: {}".format(err))
+
+            # follow
+            if following and not (self.dont_follow_inap_post and inap_img > 0):
+
+                follow_state, msg = follow_user(
+                    self.browser,
+                    track,
+                    self.username,
+                    username,
+                    None,
+                    self.blacklist,
+                    self.logger,
+                    self.logfolder,
+                )
+
+                if follow_state is True:
+                    followed += 1
+
+                elif msg == "already followed":
+                    already_followed += 1
+
+            else:
+                self.logger.info("--> Not following")
+                sleep(1)
+
+            # watch story if present
+            if story:
+                self.story_by_users([username])
+
+            if liked_img < amount:
+                self.logger.info("-------------")
+                self.logger.info(
+                    "--> Given amount not fullfilled, image pool reached its end\n"
+                )
+
+        if len(usernames) > 1:
+            # final words
+            interacted_media_size = len(usernames) * amount - inap_img
+            self.logger.info(
+                "Finished interacting on total of {} images from {} users! xD\n".format(
+                    interacted_media_size, len(usernames)
+                )
+            )
+
+            # print results
+            self.logger.info("Liked: {}".format(total_liked_img))
+            self.logger.info("Already Liked: {}".format(already_liked))
+            self.logger.info("Commented: {}".format(commented))
+            self.logger.info("Followed: {}".format(followed))
+            self.logger.info("Already Followed: {}".format(already_followed))
+            self.logger.info("Inappropriate: {}".format(inap_img))
+            self.logger.info("Not valid users: {}\n".format(not_valid_users))
+
+        self.liked_img += total_liked_img
+        self.already_liked += already_liked
+        self.commented += commented
         self.followed += followed
+        self.already_followed += already_followed
+        self.inap_img += inap_img
         self.not_valid_users += not_valid_users
 
         return self
-
-    # def comment_by_usernames(
-    #     self,
-    #     usernames: list = None,
-    #     amount: int = 10,
-    #     randomize: bool = False,
-    #     media: str = None,
-    # ):
-    #     """Likes (default) 50 images per given usernames"""
-    #     # if self.aborting:
-    #     #     return self
-    #
-    #     # test code
-    #     if not isinstance(usernames, list):
-    #         usernames = [usernames]
-    #
-    #     commented = 0
-    #     followed = 0
-    #     inap_img = 0
-    #     not_valid_users = 0
-    #
-    #     usernames = usernames or []
-    #     self.quotient_breach = False
-    #
-    #     for index, username in enumerate(usernames):
-    #         if self.quotient_breach:
-    #             break
-    #
-    #         self.logger.info("Username [{}/{}]".format(index + 1, len(usernames)))
-    #         self.logger.info("--> {}".format(username.encode("utf-8")))
-    #
-    #
-    #         try:
-    #             links = get_links_for_username(
-    #                 self.browser,
-    #                 self.username,
-    #                 username,
-    #                 amount,
-    #                 self.logger,
-    #                 self.logfolder,
-    #                 randomize,
-    #                 media,
-    #             )
-    #         except NoSuchElementException:
-    #             self.logger.warning("Element not found, skipping this username")
-    #             continue
-    #
-    #         if links is False:
-    #             continue
-    #
-    #         # Reset like counter for every username
-    #         commented_img = 0
-    #
-    #         for i, link in enumerate(links):
-    #             if (self.jumps["consequent"]["comments"]
-    #                 >= self.jumps["limit"]["comments"]
-    #             ):
-    #                 self.logger.warning(
-    #                     "--> Comment quotient reached its peak!\t~leaving "
-    #                     "Comment-By-Locations activity\n"
-    #                 )
-    #                 self.quotient_breach = True
-    #                 # reset jump counter after a breach report
-    #                 self.jumps["consequent"]["comments"] = 0
-    #                 break
-    #
-    #             self.logger.info("Comment# [{}/{}]".format(i + 1, len(links)))
-    #             self.logger.info(link)
-    #
-    #             try:
-    #                 inappropriate, user_name, is_video, reason, scope = check_link(
-    #                     self.browser,
-    #                     link,
-    #                     self.dont_like,
-    #                     self.mandatory_words,
-    #                     self.mandatory_language,
-    #                     self.is_mandatory_character,
-    #                     self.mandatory_character,
-    #                     self.check_character_set,
-    #                     self.ignore_if_contains,
-    #                     self.logger,
-    #                 )
-    #                 if not inappropriate:
-    #                     # validate user
-    #                     validation, details = self.validate_user_call(user_name)
-    #                     if validation is not True:
-    #                         self.logger.info(details)
-    #                         not_valid_users += 1
-    #                         continue
-    #                     else:
-    #                         web_address_navigator(self.browser, link)
-    #                         print("web_address_navigator loop")
-    #
-    #                     # try to comment
-    #                     self.logger.info(
-    #                         "--> Image not liked: Likes are disabled for the "
-    #                         "'Comment-By-Locations' feature"
-    #                     )
-    #
-    #                     checked_img = True
-    #                     temp_comments = []
-    #                     commenting = random.randint(0, 99) <= self.comment_percentage
-    #                     following = random.randint(0, 100) <= self.follow_percentage
-    #
-    #                     if not commenting:
-    #                         self.logger.info(
-    #                             "--> Image not commented: skipping out of "
-    #                             "given comment percentage"
-    #                         )
-    #                         continue
-    #
-    #                     if self.use_clarifai:
-    #                         try:
-    #                             (
-    #                                 checked_img,
-    #                                 temp_comments,
-    #                                 clarifai_tags,
-    #                             ) = self.query_clarifai()
-    #
-    #                         except Exception as err:
-    #                             self.logger.error("Image check error: {}".format(err))
-    #
-    #                     if (
-    #                         self.do_comment
-    #                         and user_name not in self.dont_include
-    #                         and checked_img
-    #                     ):
-    #
-    #                         if self.delimit_commenting:
-    #                             (
-    #                                 self.commenting_approved,
-    #                                 disapproval_reason,
-    #                             ) = verify_commenting(
-    #                                 self.browser,
-    #                                 self.max_comments,
-    #                                 self.min_comments,
-    #                                 self.comments_mandatory_words,
-    #                                 self.logger,
-    #                             )
-    #                         if self.commenting_approved:
-    #                             # smart commenting
-    #                             comments = self.fetch_smart_comments(
-    #                                 is_video, temp_comments
-    #                             )
-    #                             if comments:
-    #                                 comment_state, msg = comment_image(
-    #                                     self.browser,
-    #                                     user_name,
-    #                                     comments,
-    #                                     self.blacklist,
-    #                                     self.logger,
-    #                                     self.logfolder,
-    #                                 )
-    #                                 if comment_state is True:
-    #                                     commented += 1
-    #                                     # reset jump counter after a
-    #                                     # successful comment
-    #                                     self.jumps["consequent"]["comments"] = 0
-    #
-    #                                     # try to follow
-    #                                     if (
-    #                                         self.do_follow
-    #                                         and user_name not in self.dont_include
-    #                                         and checked_img
-    #                                         and following
-    #                                         and not follow_restriction(
-    #                                             "read",
-    #                                             user_name,
-    #                                             self.follow_times,
-    #                                             self.logger,
-    #                                         )
-    #                                     ):
-    #
-    #                                         follow_state, msg = follow_user(
-    #                                             self.browser,
-    #                                             "post",
-    #                                             self.username,
-    #                                             user_name,
-    #                                             None,
-    #                                             self.blacklist,
-    #                                             self.logger,
-    #                                             self.logfolder,
-    #                                         )
-    #                                         if follow_state is True:
-    #                                             followed += 1
-    #
-    #                                     else:
-    #                                         self.logger.info("--> Not following")
-    #                                         sleep(1)
-    #
-    #                             elif msg == "jumped":
-    #                                 # will break the loop after certain
-    #                                 # consecutive jumps
-    #                                 self.jumps["consequent"]["comments"] += 1
-    #
-    #                         else:
-    #                             self.logger.info(disapproval_reason)
-    #
-    #                     else:
-    #                         self.logger.info("--> Not commented")
-    #                         sleep(1)
-    #
-    #                 else:
-    #                     self.logger.info(
-    #                         "--> Image not commented: {}".format(reason.encode("utf-8"))
-    #                     )
-    #                     inap_img += 1
-    #
-    #             except NoSuchElementException as err:
-    #                 self.logger.error("Invalid Page: {}".format(err))
-    #
-    #     self.logger.info("Username: {}".format(username.encode("utf-8")))
-    #     self.logger.info("Commented: {}".format(commented))
-    #     self.logger.info("Followed: {}".format(followed))
-    #     self.logger.info("Inappropriate: {}".format(inap_img))
-    #     self.logger.info("Not valid users: {}\n".format(not_valid_users))
-    #
-    #     self.followed += followed
-    #     self.not_valid_users += not_valid_users
-    #
-    #     return self
