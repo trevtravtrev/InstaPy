@@ -422,6 +422,16 @@ class InstaPy:
         #
         # In short: default page_delay speed took 25 seconds trying to locate
         # every element, now it's taking 5 seconds.
+
+        # Accept cookies quick and dirty fix.
+        
+        self.browser.get('https://instagram.com/accounts/login')
+        self.browser.implicitly_wait(5)
+        for element in self.browser.find_elements_by_tag_name('button'):
+            if element.text.strip().lower() == 'accept':
+                element.click()
+                break
+
         temporary_page_delay = 5
         self.browser.implicitly_wait(temporary_page_delay)
 
