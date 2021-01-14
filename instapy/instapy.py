@@ -6166,11 +6166,14 @@ class InstaPy:
                                 self.logfolder,
                                 total_liked_img,
                             )
-                            if like_state is True:
-                                total_liked_img += 1
-                                liked_img += 1
-                                # reset jump counter after a successful like
-                                self.jumps["consequent"]["likes"] = 0
+                            if like_state is True or self.do_comment_liked_photo:
+                                if self.do_comment_liked_photo:
+                                    already_liked += 1
+                                else:
+                                    total_liked_img += 1
+                                    liked_img += 1
+                                    # reset jump counter after a successful like
+                                    self.jumps["consequent"]["likes"] = 0
 
                                 # comment
                                 checked_img = True
@@ -6200,18 +6203,20 @@ class InstaPy:
                                     num_comments = random.randint(num_comments_from, num_comments_to)
                                     for count in range(num_comments):
                                         success = process_comments(
-                                            comments,
-                                            temp_comments,
-                                            self.delimit_commenting,
-                                            self.max_comments,
-                                            self.min_comments,
-                                            self.comments_mandatory_words,
-                                            self.username,
-                                            self.blacklist,
-                                            self.browser,
-                                            self.logger,
-                                            self.logfolder,
-                                            index=count,
+                                        comments,
+                                        temp_comments,
+                                        self.delimit_commenting,
+                                        self.max_comments,
+                                        self.min_comments,
+                                        self.comments_mandatory_words,
+                                        self.username,
+                                        user_name,  # Comments with target user
+                                        self.blacklist,
+                                        self.browser,
+                                        link,
+                                        self.logger,
+                                        self.logfolder,
+                                        index=count
                                         )
 
                                         if success:
