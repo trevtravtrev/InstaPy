@@ -471,7 +471,7 @@ def process_comments(
     # smart commenting
     if comments and publish:
         # trevtravtrev commented all of the following code that was disabling multi comment per post
-        
+
         # # Check if InstaPy already commented on this post, it could be the
         # # case that the image has been liked (manually) but not commented, so
         # # we want to comment the post like usually we do.
@@ -496,9 +496,10 @@ def process_comments(
             logfolder,
             index
         )
-
-        # Return to the target uset page
-        user_link = "https://www.instagram.com/{}/".format(user_name)
-        web_address_navigator(browser, user_link)
+        # commented out by trevtravtrev, don't return to user page so more comments can be posted.
+        
+        # # Return to the target uset page
+        # user_link = "https://www.instagram.com/{}/".format(user_name)
+        # web_address_navigator(browser, user_link)
 
         return comment_state
